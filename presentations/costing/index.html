@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cost Optimization in Generative AI</title>
+<style>
+  :root {
+    --bg: #faf9f7;
+    --ink: #1a1a1a;
+    --muted: #6b6660;
+    --accent: #c0392b;
+    --line: #e2ddd6;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-weight: 400;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---------- deck ---------- */
+  .slide {
+    position: fixed;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    padding: clamp(2rem, 7vw, 7rem);
+    padding-bottom: clamp(3.5rem, 9vw, 8rem);
+  }
+  .slide.active { display: flex; }
+  .slide.active.nav-fwd  { animation: slideInFromRight 0.9s cubic-bezier(0.16, 1, 0.3, 1); }
+  .slide.active.nav-back { animation: slideInFromLeft  0.9s cubic-bezier(0.16, 1, 0.3, 1); }
+
+  @keyframes slideInFromRight {
+    from { transform: translateX(100%); opacity: 0.4; }
+    to   { transform: translateX(0);    opacity: 1; }
+  }
+  @keyframes slideInFromLeft {
+    from { transform: translateX(-100%); opacity: 0.4; }
+    to   { transform: translateX(0);     opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .slide.active.nav-fwd, .slide.active.nav-back { animation: none; }
+  }
+
+  .slide .inner {
+    width: 100%;
+    max-width: 60rem;
+    margin: 0 auto;
+  }
+
+  .s6-cols {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2rem;
+  }
+  .s6-diagram {
+    width: 100%;
+    max-width: 44rem;
+    height: auto;
+    color: var(--ink);
+  }
+  .s6-note {
+    max-width: 44rem;
+    text-align: center;
+    font-size: 1.15rem;
+    color: var(--muted);
+  }
+  @media (max-width: 700px) {
+    .s6-diagram { max-width: 100%; }
+  }
+
+  .kicker {
+    font-size: clamp(0.7rem, 1.4vw, 0.9rem);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 600;
+    margin-bottom: 1.2rem;
+  }
+
+  h1 {
+    font-size: clamp(2rem, 6vw, 4.2rem);
+    font-weight: 700;
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+  }
+
+  h2 {
+    font-size: clamp(1.5rem, 4vw, 2.9rem);
+    font-weight: 700;
+    line-height: 1.12;
+    letter-spacing: -0.015em;
+    margin-bottom: 1.6rem;
+  }
+
+  .sub {
+    font-size: clamp(1rem, 2.2vw, 1.5rem);
+    color: var(--muted);
+    margin-top: 1.6rem;
+    font-weight: 400;
+  }
+
+  /* progressive reveal (slide with data-steps) */
+  .step { transition: opacity 0.35s ease; }
+  .step:not(.revealed) { opacity: 0; visibility: hidden; }
+  .q-lead { color: var(--accent); }
+  @media print { .step { opacity: 1 !important; visibility: visible !important; } }
+
+  ul { list-style: none; }
+
+  li {
+    font-size: clamp(1rem, 2.1vw, 1.45rem);
+    padding: 0.42rem 0 0.42rem 1.4rem;
+    position: relative;
+    max-width: 52rem;
+  }
+  li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 1.15rem;
+    width: 0.45rem;
+    height: 0.45rem;
+    background: var(--accent);
+  }
+  li em { color: var(--accent); font-style: normal; font-weight: 600; }
+  li strong { font-weight: 600; }
+  li small { display: block; color: var(--muted); font-size: 0.82em; padding-top: 0.15rem; }
+
+  .analogy {
+    border-left: 3px solid var(--accent);
+    padding: 0.4rem 0 0.4rem 1.4rem;
+    font-size: clamp(1.05rem, 2.3vw, 1.6rem);
+    line-height: 1.4;
+    max-width: 48rem;
+  }
+  .analogy b { color: var(--accent); font-weight: 600; }
+
+  .big-number {
+    font-size: clamp(2.4rem, 8vw, 5.5rem);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    color: var(--accent);
+    line-height: 1;
+    margin: 0.4rem 0 0.6rem;
+  }
+
+  /* ---------- tables ---------- */
+  .table-wrap { overflow-x: auto; margin-top: 0.5rem; -webkit-overflow-scrolling: touch; }
+  table { border-collapse: collapse; width: 100%; font-size: clamp(0.82rem, 1.7vw, 1.1rem); }
+  th, td { text-align: left; padding: 0.5rem 0.9rem; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { color: var(--accent); font-weight: 600; border-bottom: 2px solid var(--line); }
+  td:first-child, th:first-child { padding-left: 0; }
+
+  /* ---------- slide 2 · employee vs freelancer ---------- */
+  .vs-grid {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: clamp(0.8rem, 3vw, 2.4rem);
+    align-items: stretch;
+    margin-top: clamp(1.8rem, 5vw, 3.5rem);
+  }
+  .vs-card {
+    position: relative;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    padding: clamp(1.4rem, 3.2vw, 2.2rem);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.7rem;
+  }
+  .vs-card.highlight {
+    border: 2px solid var(--accent);
+    background: #fdf2f0;
+    box-shadow: 0 18px 50px -22px rgba(192, 57, 43, 0.55);
+  }
+  .vs-icon { color: var(--muted); }
+  .vs-icon svg { width: clamp(42px, 8vw, 62px); height: auto; display: block; }
+  .vs-card.highlight .vs-icon { color: var(--accent); }
+  .vs-role {
+    font-size: clamp(1.35rem, 3.4vw, 2.1rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+  .vs-card.highlight .vs-role { color: var(--accent); }
+  .vs-tag {
+    font-size: clamp(0.72rem, 1.5vw, 0.92rem);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .vs-card.highlight .vs-tag { color: var(--accent); }
+  .vs-chart { width: 100%; margin-top: 0.5rem; }
+  .vs-chart svg { width: 100%; height: auto; display: block; }
+  .vs-chart text {
+    font: 600 10px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    fill: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .vs-pill {
+    position: absolute;
+    top: -0.7rem;
+    right: 1rem;
+    background: var(--accent);
+    color: #fff;
+    font-size: clamp(0.6rem, 1.3vw, 0.72rem);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 600;
+    padding: 0.3rem 0.7rem;
+    border-radius: 999px;
+  }
+  .vs-mid {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-size: clamp(0.7rem, 1.5vw, 0.9rem);
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    line-height: 1.3;
+  }
+  @media (max-width: 640px) {
+    .vs-grid { grid-template-columns: 1fr; }
+    .vs-mid { padding: 0.3rem 0; }
+  }
+
+  /* ---------- slide 7 · chat conversation mock ---------- */
+  .chat-mock {
+    margin: clamp(1.4rem, 4vw, 2.4rem) auto 0;
+    max-width: 30rem;
+    background: #fff;
+    border: 2px solid var(--ink);
+    border-radius: 18px;
+    padding: clamp(1rem, 3vw, 1.6rem);
+    display: flex;
+    flex-direction: column;
+    gap: clamp(0.7rem, 2vw, 1rem);
+  }
+  .chat-bubble {
+    max-width: 78%;
+    padding: 0.7rem 1rem;
+    border-radius: 14px;
+    font-size: clamp(0.9rem, 1.9vw, 1.15rem);
+    line-height: 1.35;
+  }
+  .chat-bubble.user {
+    align-self: flex-end;
+    background: var(--accent);
+    color: #fff;
+    border-bottom-right-radius: 4px;
+  }
+  .chat-bubble.llm {
+    align-self: flex-start;
+    background: #fdf2f0;
+    border: 1px solid var(--line);
+    color: var(--ink);
+    border-bottom-left-radius: 4px;
+  }
+  .chat-bubble.tall { min-height: clamp(7rem, 22vw, 10rem); }
+  .chat-cap {
+    text-align: center;
+    color: var(--muted);
+    font-size: clamp(0.85rem, 1.8vw, 1.05rem);
+    margin-top: 1rem;
+  }
+  .chat-cap b { color: var(--accent); font-weight: 600; }
+
+  /* ---------- slide 8 · turn cost breakdown ---------- */
+  .turn-layout {
+    margin-top: clamp(1.2rem, 3.5vw, 2rem);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(1.4rem, 5vw, 3.5rem);
+  }
+  .turn-layout .chat-mock { margin-top: 0; flex: 0 1 26rem; }
+  .turn-cost {
+    flex: 0 1 26rem;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(0.9rem, 2.5vw, 1.4rem);
+    font-size: clamp(0.95rem, 2vw, 1.2rem);
+  }
+  .turn-cost .line {
+    display: flex;
+    align-items: baseline;
+    gap: 0.7rem;
+    flex-wrap: wrap;
+  }
+  .turn-cost .tag {
+    font-weight: 600;
+    min-width: 3.2rem;
+  }
+  .turn-cost .tag.in { color: #2e6da4; }
+  .turn-cost .tag.out { color: #b8860b; }
+  .turn-cost .rate { color: var(--muted); }
+  .turn-cost .eq { font-weight: 600; }
+  .turn-cost .total {
+    margin-top: 0.4rem;
+    padding-top: 0.9rem;
+    border-top: 2px solid var(--ink);
+    font-weight: 700;
+    font-size: clamp(1.05rem, 2.4vw, 1.4rem);
+  }
+  .turn-notes {
+    flex: 0 1 26rem;
+    text-align: left;
+    margin: 0;
+    padding-left: 1.2rem;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(0.9rem, 2.5vw, 1.4rem);
+    font-size: clamp(0.95rem, 2vw, 1.2rem);
+    line-height: 1.5;
+  }
+
+  /* ---------- special slides ---------- */
+  .slide.title h1 { font-size: clamp(2.4rem, 7.5vw, 5.5rem); }
+  .slide.title .sub { margin-top: 2rem; }
+
+  .slide.break {
+    background: var(--accent);
+    color: #fff;
+  }
+  .slide.break .kicker { color: rgba(255,255,255,0.7); }
+  .slide.break h1 { font-size: clamp(2.4rem, 8vw, 5rem); }
+  .slide.break .sub { color: rgba(255,255,255,0.85); }
+
+  .slide.section h2 { font-size: clamp(1.8rem, 5.5vw, 3.6rem); margin-bottom: 0; }
+
+  /* ---------- chrome ---------- */
+  footer {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.9rem clamp(1.5rem, 5vw, 4rem);
+    font-size: 0.78rem;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+    background: linear-gradient(to top, var(--bg) 60%, transparent);
+    z-index: 20;
+  }
+  .slide.break ~ footer { color: var(--muted); }
+
+  .slide-links {
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--line);
+    font-size: 0.8rem;
+    color: var(--muted);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.5rem;
+  }
+
+  .dots { display: flex; gap: 6px; flex-wrap: wrap; max-width: 55vw; justify-content: center; }
+  .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--line);
+    border: none;
+    padding: 0;
+    cursor: pointer;
+  }
+  .dot.on { background: var(--accent); }
+  .dot.section { background: var(--muted); }
+  .dot.section.on { background: var(--accent); }
+
+  .count { font-variant-numeric: tabular-nums; }
+  .deck-name { text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.72rem; }
+
+  @media (max-width: 600px) {
+    .deck-name { display: none; }
+    .dots { max-width: 60vw; }
+  }
+
+  /* ---------- print: one slide per page ---------- */
+  @media print {
+    @page { size: landscape; margin: 0; }
+    html, body { height: auto; background: #fff; }
+    footer { display: none; }
+    .slide {
+      position: relative;
+      inset: auto;
+      display: flex !important;
+      height: 100vh;
+      page-break-after: always;
+      break-after: page;
+    }
+    .slide.break { background: var(--accent) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .vs-card.highlight { background: #fdf2f0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+
+<!-- 1 -->
+<section class="slide title" data-section>
+  <div class="inner">
+    <div class="kicker">A Deep Dive</div>
+    <h1>Cost Optimization in Generative AI</h1>
+    <div class="sub">The economics of <em>API pricing</em> — what you pay when you build and ship an AI product.</div>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="slide">
+  <div class="inner">
+    <h2>Two ways to access AI models</h2>
+
+    <div class="vs-grid">
+
+      <div class="vs-card">
+        <div class="vs-icon">
+          <svg viewBox="0 0 64 74" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="26" y="5" width="12" height="7" rx="2.5"/>
+            <path d="M32 12 V17"/>
+            <rect x="12" y="17" width="40" height="50" rx="5"/>
+            <circle cx="32" cy="37" r="7"/>
+            <path d="M20 58 c1.5 -9 22.5 -9 24 0"/>
+          </svg>
+        </div>
+        <div class="vs-role">Subscription</div>
+        <div class="vs-tag">Employee</div>
+        <div class="vs-chart">
+          <svg viewBox="0 0 240 116" fill="none">
+            <path d="M20 8 V96 H236" stroke="var(--line)" stroke-width="2"/>
+            <path d="M24 52 H232" stroke="var(--muted)" stroke-width="3" stroke-linecap="round"/>
+            <text x="20" y="112">flat monthly cost</text>
+          </svg>
+        </div>
+      </div>
+
+      <div class="vs-mid"><span>same<br>difference</span></div>
+
+      <div class="vs-card highlight">
+        <span class="vs-pill">This session</span>
+        <div class="vs-icon">
+          <svg viewBox="0 0 64 74" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M13 5 H39 L51 17 V69 H13 Z"/>
+            <path d="M39 5 V17 H51"/>
+            <path d="M32 27 V53"/>
+            <path d="M38 33 a6 5 0 0 0 -6 -4 a6 5 0 0 0 0 10 a6 5 0 0 1 0 10 a6 5 0 0 1 -6 -4"/>
+          </svg>
+        </div>
+        <div class="vs-role">API pricing</div>
+        <div class="vs-tag">Freelancer</div>
+        <div class="vs-chart">
+          <svg viewBox="0 0 240 116" fill="none">
+            <path d="M20 8 V96 H236" stroke="var(--line)" stroke-width="2"/>
+            <path d="M24 88 L60 82 L96 70 L132 74 L168 48 L204 30 L232 10 L232 96 L24 96 Z" fill="var(--accent)" fill-opacity="0.12"/>
+            <path d="M24 88 L60 82 L96 70 L132 74 L168 48 L204 30 L232 10" stroke="var(--accent)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+            <text x="20" y="112" fill="var(--accent)">bill scales with usage</text>
+          </svg>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker">Block 0 · Why it matters</div>
+    <h2>Real financial risk</h2>
+    <ul>
+      <li>Cost = Price x Usage</li>
+      <li>Understand unit economics <em>before</em> scale — at scale they are painful to change.</li> 
+    </ul>
+    <div class="slide-links">
+      <a href="https://aws.amazon.com/ec2/pricing/on-demand/">AWS EC2 pricing</a>
+    </div>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="slide" data-steps>
+  <div class="inner">
+    <div class="kicker">Block 1 · Unit of billing</div>
+    <h2 class="q-lead">What is the unit of billing?</h2>
+    <div class="step">
+      <h2>The token is the unit of billing</h2>
+      <ul>
+        <li>A token = the atomic sub-word chunk an LLM reads and writes.</li>
+        <li>Tokenizer: Text → Tokens</li>
+        <li>Custom tokenizers used by models</li>
+        <li>English rule of thumb: <em>1 token ≈ ¾ word ≈ 4 characters</em>.</li>
+      </ul>
+      <div class="slide-links">
+        <a href="https://platform.openai.com/tokenizer">OpenAI Tokenizer</a>
+        <a href="https://ai.google.dev/gemini-api/docs/tokens">Gemini Token Counter</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker">Block 1 · Pricing pages</div>
+    <h2>How labs publish prices</h2>
+    <div class="s6-cols">
+      <svg class="s6-diagram" viewBox="0 0 340 200" role="img" aria-label="Input tokens enter the AI model box, output tokens exit; price per 1M tokens shown on each side">
+        <!-- input side -->
+        <text x="8" y="92" font-size="13" font-weight="600" fill="currentColor">Input tokens</text>
+        <text x="8" y="112" font-size="12" fill="var(--accent)">$ / MTok</text>
+        <line x1="8" y1="128" x2="120" y2="128" stroke="currentColor" stroke-width="2"/>
+        <polygon points="120,122 132,128 120,134" fill="currentColor"/>
+        <!-- model box -->
+        <rect x="132" y="80" width="76" height="96" rx="8" fill="none" stroke="var(--accent)" stroke-width="2.5"/>
+        <text x="170" y="124" font-size="12" font-weight="700" fill="currentColor" text-anchor="middle">AI</text>
+        <text x="170" y="140" font-size="12" font-weight="700" fill="currentColor" text-anchor="middle">model</text>
+        <!-- output side -->
+        <line x1="208" y1="128" x2="320" y2="128" stroke="currentColor" stroke-width="2"/>
+        <polygon points="320,122 332,128 320,134" fill="currentColor"/>
+        <text x="250" y="92" font-size="13" font-weight="600" fill="currentColor">Output tokens</text>
+        <text x="250" y="112" font-size="12" fill="var(--accent)">$ / MTok</text>
+      </svg>
+      <p class="s6-note"><em>MTok</em> = 1 million (1,000,000) tokens, the standard unit.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker">Block 2 · Live comparison</div>
+    <h2>Price vs. intelligence</h2>
+    <ul>
+      <li><em>Frontier Labs:</em> Anthropic, OpenAI, xAI</li>
+      <li><em>Open-weight models:</em> Kimi, Deepseek, Z.ai</li>
+    </ul>
+    <div class="slide-links">
+      <a href="https://artificialanalysis.ai/models">Intelligence Metrics</a>
+    </div>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker">Block 3 · Conversation</div>
+    <h2>Understanding conversation costs</h2>
+    <div class="chat-mock" role="img" aria-label="A chat with an LLM: two user turns in red, two model replies. Each new turn re-sends the whole thread as input.">
+      <div class="chat-bubble user">Who wrote Romeo & Juliet?</div>
+      <div class="chat-bubble llm">William Shakesphere</div>
+      <div class="chat-bubble user">Give me a 2 page excerpt from it</div>
+      <div class="chat-bubble llm tall">ROMEO:
+        He jests at scars that never felt a wound.
+        
+        Juliet appears above at a window.
+        
+        But, soft! what light through yonder window breaks?
+        It is the east, and Juliet is the sun.
+        Arise, fair sun, and kill the envious moon,
+        Who is already sick and pale with grief,
+        That thou her maid art far more fair than she.
+        Be not her maid, since she is envious;
+        Her vestal livery is but sick and green,
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker">Block 3 · Conversation · Exercise</div>
+    <h2>Turn 1</h2>
+    <div class="turn-layout">
+      <div class="chat-mock" role="img" aria-label="Turn 1 of a chat with an LLM: one user question and one model reply.">
+        <div class="chat-bubble user">Who wrote Romeo & Juliet?</div>
+        <div class="chat-bubble llm">William Shakesphere</div>
+        <div class="chat-bubble user"></div>
+        <div class="chat-bubble llm tall"></div>
+      </div>
+      <div class="turn-cost">
+        <div class="line">
+          <span class="tag in">In</span>
+          <span>5 tok</span>
+          <span class="rate">× $4 / tok</span>
+          <span class="eq">= 5 × 4 = $20</span>
+        </div>
+        <div class="line">
+          <span class="tag out">Out</span>
+          <span>2 tok</span>
+          <span class="rate">× $20 / tok</span>
+          <span class="eq">= 2 × 20 = $40</span>
+        </div>
+        <div class="total">Total cost (turn 1) = $60</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker">Block 3 · Accumulating Context</div>
+    <h2>Turn 2</h2>
+    <div class="turn-layout">
+      <div class="chat-mock" role="img" aria-label="Turn 2 of a chat with an LLM: the whole thread so far is re-sent as input, then a long model reply.">
+        <div class="chat-bubble user">Who wrote Romeo & Juliet?</div>
+        <div class="chat-bubble llm">William Shakesphere</div>
+        <div class="chat-bubble user">Give me a 2 page excerpt from it</div>
+        <div class="chat-bubble llm tall">ROMEO:
+          He jests at scars that never felt a wound.
+          
+          Juliet appears above at a window.
+          
+          But, soft! what light through yonder window breaks?
+          It is the east, and Juliet is the sun.
+          Arise, fair sun, and kill the envious moon,
+          Who is already sick and pale with grief,
+          That thou her maid art far more fair than she.</div>
+      </div>
+      <ul class="turn-notes">
+        <li>Every API call is completely independent. The model has <em>no memory</em> of previous calls.</li>
+        <li>To "remember", your app re-sends the <em>entire</em> conversation as input on every single turn.</li>
+      </ul>
+    </div>
+    </div>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker">Block 3 · "Please and thank you"</div>
+    <h2>Every polite token is billed</h2>
+    <ul>
+      <li>Sam Altman on the cost of users typing "please" and "thank you": <em>"tens of millions of dollars well spent."</em></li>
+      <li>The serious version: <strong>every token in your system prompt is paid on every turn, of every conversation, by every user, forever.</strong></li>
+      <li>Trimming 200 tokens across 1M conversations/month ≈ $600/month saved.</li>
+    </ul>
+    <div class="slide-links">
+      <a href="https://x.com/sama/status/1912646035979239430">sama x post</a>
+    </div>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker">Block 4 · Modalities</div>
+    <h2>One method for every modality</h2>
+    <ul>
+      <li><strong>1.</strong> Understand the mechanism that converts the media into billable units.</li>
+      <li><strong>2.</strong> Find the published rate on the API docs.</li>
+      <li><strong>3.</strong> Calculate.</li>
+    </ul>
+    <div class="sub">Text is the baseline. Everything else converts into "tokens" with a modality-specific rate.</div>
+  </div>
+</section>
+
+<!-- 12 -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker">Block 4 · Audio · Exercise</div>
+    <h2>Audio Tokenization</h2>
+    <img src="assets/audio_token_web.png" alt="Neural audio codec process: original audio wave (1 sec = 44,100 samples) split into 25 ms windows, passed through a neural encoder, producing ~50 discrete audio tokens per second." style="display:block; width:100%; max-width:44rem; margin:1.5rem auto 2rem; height:auto;">
+    <ul>
+      <li><strong>Conversions:</strong> labs publish a conversion — X seconds of audio ↔ Y audio tokens.</li>
+      <li><strong>Understanding calculations for:</strong> Audio In, Audio Out </li>
+    </ul>
+    <div class="slide-links">
+      <a href="https://ai.google.dev/gemini-api/docs/tokens#multimodal-tokens">Gemini token counts</a>
+      <a href="https://developers.openai.com/api/docs/guides/realtime-costs#per-response-costs">OpenAI token counts</a>
+    </div>
+  </div>
+</section>
+
+<!-- 13 -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker">Block 4 · Images in & out (vision)</div>
+    <h2>Patchification / tiling</h2>
+    <img src="assets/image_token.png" alt="How an image is converted into tokens for a vision model." style="display:block; width:100%; max-width:44rem; margin:1.5rem auto 2rem; height:auto;">
+    <ul>
+      <li><strong>Image Input Conversion:</strong> labs publish token multiplier — X patch ↔ Y tokens.</li>
+      <li><strong>Image Out Conversion:</strong> labs publish direct token count — X resolution ↔ Y tokens.</li>
+    </ul> 
+    <div class="slide-links">
+      <a href="https://developers.openai.com/api/docs/guides/image-cost-calculator">Input Cost Calculator</a>
+      <a href="https://developers.openai.com/api/docs/guides/image-generation#cost-and-latency">Output Costs</a>
+    </div>
+  </div>
+</section>
+
+<!-- 14 -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker">Block 4 · Video in</div>
+    <h2>Series of images + audio</h2>
+    <ul>
+      <li><strong>Step 1</strong> — Sample frames at 1FPS.</li>
+      <li><strong>Step 2</strong> — Tokenize all frames.</li>
+      <li><strong>Step 3</strong> — Tokenize audio.</li>
+      <li>Cost/sec of video ≈ one frame's image cost + one second of audio tokens.</li>
+    </ul>
+    <div class="slide-links">
+      <a href="https://ai.google.dev/gemini-api/docs/video-understanding#technical-details-video">Gemini video tokens</a>
+    </div>
+  </div>
+</section>
+
+<!-- 15 -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker">Block 4 · Video out</div>
+    <h2>The most expensive modality by far</h2>
+    <div class="big-number">$0.40 / sec</div>
+    <ul>
+      <li>Veo 3 standard, with audio · Veo 3 Fast ≈ $0.15/sec · up to $0.60/sec at 4K.</li>
+      <li>An 8-second clip ≈ $3.20–$6.00 ≈ the cost of ~300-600k output text tokens (Sonnet).</li>
+      <li>Treat generation as a premium action: gate it, cache it, never regenerate casually.</li>
+    </ul>
+    <div class="slide-links">
+      <a href="https://ai.google.dev/gemini-api/docs/pricing#veo-3.1">Veo3 pricing</a>
+    </div>
+  </div>
+</section>
+
+<!-- 16 -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker">Block 4 · Embeddings</div>
+    <h2>Input billed only</h2>
+    <ul>
+      <li>An embedding model returns a fixed-size vector — same size whether you send 1 token or 30,000. So providers charge for <em>input only</em>.</li>
+      <li>Also 1–2 orders of magnitude cheaper per token than chat models.</li>
+      <li><strong>Bonus:</strong> the first N dimensions are themselves a usable embedding — truncate a 3,072-dim vector to 256 dims for free, graceful quality loss.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 17 -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker">Block 4 · Reasoning tokens</div>
+    <h2>Thinking is billed as output</h2>
+    <ul>
+      <li>A reasoning model generates internal "thinking" tokens before its visible answer — billed at the standard<em>output</em> rates.</li>
+      <li>Complete thinking often hidden — you get a summary but pay for the full count. The one modality you <em>can't</em> pre-count locally.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 18 -->
+<section class="slide break" data-section>
+  <div class="inner">
+    <div class="kicker">Pause</div>
+    <h1>Break</h1>
+    <div class="sub">10 minutes.</div>
+  </div>
+</section>
+
+<!-- 19 -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker">Block 5 · Pricing tiers</div>
+    <h2>The pricing cliff</h2>
+    <ul>
+      <li>Every major lab has an inflection point — commonly ~<em>200K input tokens</em> in a single request — above which per-token rates jump.</li>
+      <li>Recurring shape: <strong>input roughly doubles, output goes up ~50%</strong>.</li>
+      <li>The higher rate applies to the <em>entire request</em>, not just the tokens above the line.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 20 -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker">Block 5 · Why</div>
+    <h2>Attention is quadratic</h2>
+    <ul>
+      <li>Self-attention: Compute scales as <em>O(n²)</em></li>
+      <li>KV Cache size explodes</li>
+      <li>KV cache size ≈ <em>2 × n × d × L × (bytes per value)</em><br><span style="font-size:0.75em;opacity:0.8">the <strong>2</strong> is for K and V, <strong>n</strong> is tokens, <strong>d</strong> is model dimension, <strong>L</strong> is number of layers.</span></li>
+      <li>Batching efficiency collapses</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 21 -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker">Block 6 · Cost Saving - 1</div>
+    <h2>Prompt Caching</h2>
+    <ul>
+      <li>Send the same prefix (system prompt, tool defs, fixed document) every request → the provider stores the intermediate computation (KV cache) instead of recomputing.</li>
+      <li>A cache hit is <em>cheaper and faster</em> (lower time-to-first-token).</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 22 -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker">Block 6 · Mechanics</div>
+    <h2>How the providers do it</h2>
+    <div class="table-wrap">
+      <table>
+        <tr><th>Provider</th><th>Write</th><th>Read</th><th>Lifetime</th></tr>
+        <tr><td>Anthropic (explicit & automatic)</td><td>1.25× / 2×</td><td>0.1× (90% off)</td><td>~5 min / 1 hr</td></tr>
+        <tr><td>Google Gemini</td><td>per hr storage fee</td><td>0.1x (90% off)</td><td>1 min - 24 hr</td></tr>
+        <tr><td>OpenAI (automatic)</td><td>1.25x now</td><td>~0.5× (up to 90% off)</td><td>~5–10 min</td></tr>
+      </table>
+    </div>
+    <ul>
+      <li>Prefix must be large (~1,024 tok+) and stable — one byte change invalidates it.</li>
+      <li>Stable content <em>first</em>, volatile content (new question, per-request IDs) <em>last</em>.</li>
+      <li>Savings on the cached portion: 50–90%. At scale, often the single largest lever.</li>
+    </ul>
+    <div class="slide-links">
+      <a href="https://platform.claude.com/docs/en/build-with-claude/prompt-caching">Claude Caching</a>
+    </div>
+  </div>
+</section>
+
+<!-- 23 -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker">Block 6 · Cost Saving - 2</div>
+    <h2>Batch / async APIs — up to 50% off</h2>
+    <ul>
+      <li>Submit a large set of requests, results back within 24h (usually 1–6h), at ~50% off input <em>and</em> output.</li>
+      <li>OpenAI: up to 50,000 requests / 200 MB per job. Anthropic: up to 100,000 requests per batch.</li>
+      <li>Ideal for bulk document processing, evals, embedding generation, labelling, moderation sweeps.</li>
+    </ul>
+    <div class="sub">If real-time isn't required, batching halves the bill for zero quality loss. Stacks with caching.</div>
+  </div>
+</section>
+
+<!-- 24 -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker">Block 6 · Modality-specific optimisations</div>
+    <h2>Cut units before they're billed</h2>
+    <ul>
+      <li><strong>Audio:</strong> drop silences &gt; 5s; speed up 1.25–1.5× (≈ 33% off, no quality loss); downmix to mono-channel.</li>
+      <li><strong>Image:</strong> crop blank regions · resize to useful resolution · low/medium detail first · zoom or resend only relevant regions at high detail</li>
+      <li><strong>Video:</strong> scene / delta frame extraction (OpenCV, PySceneDetect, FFmpeg, CLIP) instead of blunt 1-FPS — 5–20× less.</li>
+      <li><strong>Embeddings:</strong> retrieve full-dim, store full vector + a 256-dim truncation for a cheap first-pass; re-rank.</li>
+      <li><strong>Text:</strong> trim the system prompt · cache the prefix · summarise old history · constrain output · right-size the model.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 25 -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker">Block 8 · Structural levers</div>
+    <h2>Distillation & fine-tuning</h2>
+    <ul>
+      <li>Use a frontier model to generate high-quality labelled examples for <em>your</em> task.</li>
+      <li>Fine-tune a much smaller, cheaper model on that data — it matches the big model on that narrow task.</li>
+      <li>Reported: ~13.7× lower cost per successful extraction vs. the frontier model. Fine-tuning job itself ≈ a few dollars, ~20 min.</li>
+      <li>A mature-team move: you now own a model artefact to version and re-train.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 27 -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker">Block 9 · Worked economics</div>
+    <h2>Two products, same method</h2>
+    <div class="table-wrap">
+      <table>
+        <tr><th></th><th>Cost Savings</th></tr>
+        <tr><td>Baseline</td><td>~$16,350 / month</td></tr>
+        <tr><td>+ prompt caching</td><td>→ ~$7,200</td></tr>
+        <tr><td>+ batch async share</td><td>→ ~$6,100</td></tr>
+        <tr><td>+ distilled mini model</td><td>→ ~$3,000–3,500</td></tr>
+        <tr><td>+ trim / cap / summarise</td><td>→ ~$2,700–3,100</td></tr>
+      </table>
+    </div>
+    <div class="sub">A realistic <em>~5× reduction</em> with no drop in answer quality — levers applied in sensible order.</div>
+  </div>
+</section>
+
+<!-- 28 -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker">Block 9 · Takeaway artefact</div>
+    <h2>The cost-optimisation checklist</h2>
+    <ul>
+      <li><strong>Measure first</strong> — log usage on every call; attribute cost per feature &amp; cohort; set spend caps; know cost per conversation.</li>
+      <li><strong>Reduce tokens</strong> — trim the prompt; summarise old history; constrain output; downscale media; stay under the cliff.</li>
+      <li><strong>Reduce unit price</strong> — cache every stable prefix; batch anything not latency-sensitive; right-size the model; match reasoning effort; distil; truncate embeddings.</li>
+      <li><strong>Re-evaluate</strong> — re-run your model/price comparison every quarter.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 29 -->
+<section class="slide section" data-section>
+  <div class="inner">
+    <div class="kicker">Block 10 · Wrap</div>
+    <h2>Discussion &amp; exercises</h2>
+    <ul>
+      <li>What does one sentence added to your system prompt cost per month at your scale?</li>
+      <li>Where does caching help in your support bot — and where does it not?</li>
+      <li>Your bill doubled, user count is flat. List five things to investigate.</li>
+    </ul>
+    <div class="sub"><em>Pick the cheapest model that clears your quality bar — and re-check every quarter.</em></div>
+  </div>
+</section>
+
+<footer>
+  <span class="deck-name">LLM Cost Optimization</span>
+  <div class="dots" id="dots"></div>
+  <span class="count"><span id="cur">1</span> / <span id="total">1</span></span>
+</footer>
+
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const dotsWrap = document.getElementById('dots');
+  const curEl = document.getElementById('cur');
+  let i = 0;
+
+  document.getElementById('total').textContent = slides.length;
+
+  slides.forEach((s, n) => {
+    const d = document.createElement('button');
+    d.className = 'dot' + (s.hasAttribute('data-section') ? ' section' : '');
+    d.title = 'Slide ' + (n + 1);
+    d.addEventListener('click', () => show(n));
+    dotsWrap.appendChild(d);
+  });
+  const dots = Array.from(dotsWrap.children);
+
+  function stepsOf(n) { return Array.from(slides[n].querySelectorAll('.step')); }
+
+  function show(n, revealAll) {
+    const prev = i;
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    const back = i < prev;
+    slides.forEach((s, k) => {
+      s.classList.toggle('active', k === i);
+      s.classList.remove('nav-fwd', 'nav-back');
+    });
+    if (i !== prev) {
+      // force reflow so the animation restarts even on rapid navigation
+      void slides[i].offsetWidth;
+      slides[i].classList.add(back ? 'nav-back' : 'nav-fwd');
+    }
+    dots.forEach((d, k) => d.classList.toggle('on', k === i));
+    curEl.textContent = i + 1;
+    stepsOf(i).forEach(el => el.classList.toggle('revealed', !!revealAll));
+    if (history.replaceState) history.replaceState(null, '', '#' + (i + 1));
+    else location.hash = i + 1;
+  }
+
+  function go(step) {
+    const steps = stepsOf(i);
+    if (step > 0) {
+      const next = steps.find(el => !el.classList.contains('revealed'));
+      if (next) { next.classList.add('revealed'); return; }
+    } else if (step < 0) {
+      const revealed = steps.filter(el => el.classList.contains('revealed'));
+      if (revealed.length) { revealed[revealed.length - 1].classList.remove('revealed'); return; }
+    }
+    show(i + step, step < 0);
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); go(1); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); go(-1); }
+    else if (e.key === 'Home') { e.preventDefault(); show(0); }
+    else if (e.key === 'End') { e.preventDefault(); show(slides.length - 1); }
+    else if (e.key === 'f' || e.key === 'F') {
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+      else document.exitFullscreen?.();
+    }
+  });
+
+  const start = parseInt(location.hash.replace('#', ''), 10);
+  show(Number.isFinite(start) && start >= 1 ? start - 1 : 0);
+</script>
+
+</body>
+</html>
